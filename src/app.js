@@ -10,7 +10,9 @@ import { Strategy as LocalStrategy } from "passport-local";
 import { User } from "./manager/mongo/models/users.js";
 import dotenv from 'dotenv'
 import { uploader } from "./services/uploader.js";
-
+import { Server } from "socket.io";
+import { productServices } from "./DAOs/daos.js";
+import { cartServices } from "./DAOs/daos.js";
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
 
@@ -138,3 +140,43 @@ app.get('/req',(req,res)=>{
 
 
 const server = app.listen(PORT,()=>console.log(`Listening on ${PORT}`))
+const io = new Server(server)
+
+
+io.on('connection', async socket=>{
+    console.log('new user')
+
+    let products = await productServices.get()
+    io.emit('products',products)
+
+    socket.on('createCart', async data=>{
+        let newCart = await cartServices.new()
+        let cartID = newCart.payload[0]._id
+        io.emit('cartCreated',{cart:newCart})
+        socket.on('addProductToCart', async idProd=>{
+            await cartServices.add(cartID,idProd)
+            let cart = await cartServices.get(cartID)
+            let prodInCartIds = cart.payload[0].products
+            
+            let prodInCart = []
+            socket.emit('refreshCart',prodInCartIds)
+            for (let i = 0; i < prodInCartIds.length; i++) {
+                const id = prodInCartIds[i];
+                let product = await productServices.getById(id)
+                
+                prodInCart.push(product.payload[0])
+                product = []
+            }
+            
+            socket.emit('refreshCart',prodInCart)
+        })
+        socket.on('finishPurchase',async data=>{
+            console.log(data)
+            for (let index = 0; index < data.length; index++) {
+                const element = data[index];
+                await cartServices.deleteProd(cartID,element.id)
+            }
+        })
+    })
+
+})

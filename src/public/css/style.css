@@ -29,3 +29,36 @@ img {
     color: black;
     margin: 0 20px 0 20px;
 }
+
+#card {
+    width: 150px;
+    height: 300px;
+    border: 1px solid black;
+    margin: 20px;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-around;
+    align-items: center;
+}
+
+#card img {
+    width: 100px;
+    height: 100px;
+    object-fit: contain;
+}
+
+#productContainer {
+    display: flex;
+    flex-direction: row;
+    flex-wrap: wrap;
+    justify-content: center;
+    align-items: flex-start;
+}
+
+#cartContainer {
+    display: flex;
+    flex-direction: row;
+    flex-wrap: wrap;
+    justify-content: center;
+    align-items: flex-start;
+}
