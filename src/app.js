@@ -15,6 +15,9 @@ import { productServices } from "./DAOs/daos.js";
 import { cartServices } from "./DAOs/daos.js";
 import { createTransport } from "nodemailer";
 import twilio from "twilio";
+import cluster from 'cluster'
+import os from 'os'
+import minimist from "minimist";
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
 
@@ -174,8 +177,31 @@ app.get('/req',(req,res)=>{
     res.json(req.session.passport.user)
 })
 
+const numCPUs = os.cpus().length
 
-const server = app.listen(PORT,()=>console.log(`Listening on ${PORT}`))
+const args = minimist(process.argv.slice(2))
+
+switch (args.modo) {
+    case 'cluster':
+        if(cluster.isPrimary){
+            console.log(`master ${process.pid} is running`)
+            for(let i = 0;i<numCPUs;i++){
+                cluster.fork()
+            }
+            cluster.on('exit',(worker,code,signal)=>{
+                console.log(`worker ${worker.process.pid} died`)
+            })
+        } else {
+            var server = app.listen(PORT,()=>console.log(`Listening on ${PORT}`))
+        }
+        break;
+    default:
+        var server = app.listen(PORT,()=>console.log(`Listening on ${PORT}`))
+        break;
+}
+
+//const server = app.listen(PORT,()=>console.log(`Listening on ${PORT}`))
+console.log(`worker ${process.pid} started`)
 const io = new Server(server)
 
 
