@@ -13,10 +13,24 @@ import { uploader } from "./services/uploader.js";
 import { Server } from "socket.io";
 import { productServices } from "./DAOs/daos.js";
 import { cartServices } from "./DAOs/daos.js";
+import { createTransport } from "nodemailer";
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
 
 dotenv.config()
+
+const TEST_MAIL = process.env.TEST_MAIL
+
+const transporter = createTransport({
+    host: 'smtp.gmail.com',
+    port: 587,
+    auth: {
+        user: TEST_MAIL,
+        pass: process.env.MAIL_PASS
+    }
+})
+
+
 
 const app = express()
 const PORT = process.env.PORT || 8080
@@ -36,7 +50,7 @@ app.use(session({
     resave:true,
     saveUninitialized:true,
     cookie:{
-        expires: 50000
+        expires: 500000
     }
 }))
 // IMPLEMENTACION PASSPORT
@@ -73,7 +87,7 @@ passport.use('signupStrategy', new LocalStrategy({passReqToCallback:true},
                 password: createHash(password),
                 name: req.body.name,
                 address: req.body.address,
-                file: req.protocol+"://"+req.hostname+":"+PORT+"/img/"+req.file.filename,
+                file: req.protocol+"://"+req.hostname+":"+PORT+"/img/"+req.file.filename || 'no file',
                 age: req.body.age,
                 phone: req.body.phone,
                 isAdmin: req.body.isAdmin || false
@@ -115,8 +129,25 @@ app.get('/signup',(req,res)=>{
 
 app.post('/signup',uploader.single('file'),passport.authenticate('signupStrategy',{
     failureRedirect: '/signup',
-}),(req,res)=>{
-    console.log(req.body,req.file)
+}),async (req,res)=>{
+
+    const mailOptions = {
+        from: 'servidor de node js',
+        to: TEST_MAIL,
+        subject: 'nuevo usuario registrado',
+        html: `nuevo usuario
+                nombre:${req.body.name}
+                email: ${req.body.username}`
+    }
+
+    
+    try {
+        const info = await transporter.sendMail(mailOptions)
+        console.log(info)
+    } catch (err) {
+    console.log(err)        
+    }
+
     res.redirect('/api/products')    
 })
 
@@ -172,6 +203,29 @@ io.on('connection', async socket=>{
         })
         socket.on('finishPurchase',async data=>{
             console.log(data)
+
+            let articulosPedido = ''
+            for (let i = 0; i < data.length-1; i++) {
+                const articulo = data[i];
+                articulosPedido = articulosPedido+`<ul><li>name: ${articulo.name}</li><li>price: ${articulo.price}</li><li>id: ${articulo.id}</li></ul><br>`
+            }
+
+
+            const mailOptions2 = {
+                from: 'servidor de node js',
+                to: TEST_MAIL,
+                subject: `nuevo pedido de ${data[data.length-1].user} , email ${data[data.length-1].email} `,
+                html: `lista de pedido:<br> ${articulosPedido}`
+            }
+        
+            
+            try {
+                const info = await transporter.sendMail(mailOptions2)
+                console.log(info)
+            } catch (err) {
+            console.log(err)        
+            }
+
             for (let index = 0; index < data.length; index++) {
                 const element = data[index];
                 await cartServices.deleteProd(cartID,element.id)

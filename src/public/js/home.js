@@ -82,9 +82,14 @@ socket.on('refreshCart',cart=>{
             obj.id = p._id
             return obj
         })
-        console.log(cartMessage)
-        socket.emit('finishPurchase',cartMessage)
-        cartContainer.innerHTML = null
+
+        fetch('/req').then(r=>r.json()).then(user=>{
+            cartMessage.push({user:user.name, email:user.username})
+            console.log(cartMessage)
+            socket.emit('finishPurchase',cartMessage)
+            cartContainer.innerHTML = null
+        })
+
     })
     cartContainer.append(btn)
 })
