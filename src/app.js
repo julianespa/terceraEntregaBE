@@ -14,6 +14,7 @@ import { Server } from "socket.io";
 import { productServices } from "./DAOs/daos.js";
 import { cartServices } from "./DAOs/daos.js";
 import { createTransport } from "nodemailer";
+import twilio from "twilio";
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
 
@@ -30,6 +31,10 @@ const transporter = createTransport({
     }
 })
 
+const accountSid = process.env.TWILIO_SID
+const authToken = process.env.TWILIO_TOKEN
+
+const client = twilio(accountSid,authToken)
 
 
 const app = express()
@@ -205,8 +210,15 @@ io.on('connection', async socket=>{
             console.log(data)
 
             let articulosPedido = ''
+            let articulosPedidoWapp = ''
             for (let i = 0; i < data.length-1; i++) {
                 const articulo = data[i];
+                articulosPedidoWapp = articulosPedidoWapp+`
+                name: ${articulo.name}
+                price: ${articulo.price}
+                id: ${articulo.id}
+
+                `
                 articulosPedido = articulosPedido+`<ul><li>name: ${articulo.name}</li><li>price: ${articulo.price}</li><li>id: ${articulo.id}</li></ul><br>`
             }
 
@@ -222,8 +234,24 @@ io.on('connection', async socket=>{
             try {
                 const info = await transporter.sendMail(mailOptions2)
                 console.log(info)
+
+                const message = await client.messages.create({
+                    body:'pedido recibido y en estado de procesamiento',
+                    from: '+17245387231',
+                    to: data[data.length-1].phone
+                })
+                console.log(message)
+
+                const whatsapp = await client.messages.create({
+                    body: `nuevo pedido de ${data[data.length-1].user} , email ${data[data.length-1].email}
+                     ${articulosPedidoWapp}`,
+                    from: 'whatsapp:'+'+14155238886',
+                    to: 'whatsapp:'+data[data.length-1].phone
+                })
+                console.log(whatsapp)
+
             } catch (err) {
-            console.log(err)        
+                console.log(err)        
             }
 
             for (let index = 0; index < data.length; index++) {

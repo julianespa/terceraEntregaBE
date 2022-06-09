@@ -84,7 +84,7 @@ socket.on('refreshCart',cart=>{
         })
 
         fetch('/req').then(r=>r.json()).then(user=>{
-            cartMessage.push({user:user.name, email:user.username})
+            cartMessage.push({user:user.name, email:user.username, phone:user.phone})
             console.log(cartMessage)
             socket.emit('finishPurchase',cartMessage)
             cartContainer.innerHTML = null
