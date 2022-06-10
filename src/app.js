@@ -18,6 +18,24 @@ import twilio from "twilio";
 import cluster from 'cluster'
 import os from 'os'
 import minimist from "minimist";
+import log4js from "log4js";
+
+log4js.configure({
+    appenders: {
+        miLoggerConsole: { type: 'console' },
+        miLoggerFile: { type: 'file', filename: 'warns.log' },
+        miLoggerFile2: { type: 'file', filename: 'errors.log' }
+    },
+    categories: {
+        default: { appenders: ['miLoggerConsole'], level: 'info' },
+        archivo: { appenders: ['miLoggerFile'], level: 'warn' },
+        archivo2: { appenders: ['miLoggerFile2'], level: 'error' },
+    }
+})
+
+let loggerConsole = log4js.getLogger()
+let loggerWarn = log4js.getLogger('archivo')
+let loggerError = log4js.getLogger('archivo2')
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
 
@@ -151,9 +169,10 @@ app.post('/signup',uploader.single('file'),passport.authenticate('signupStrategy
     
     try {
         const info = await transporter.sendMail(mailOptions)
-        console.log(info)
+        loggerConsole.info(info)
     } catch (err) {
-    console.log(err)        
+        loggerError.error(error)
+        loggerConsole.error(error)        
     }
 
     res.redirect('/api/products')    
@@ -163,7 +182,7 @@ app.post('/login',uploader.single('file'),passport.authenticate('loginStrategy',
     failureRedirect: '/',
 }),(req,res)=>{
     res.redirect('/api/products')
-    console.log(req.body)
+    loggerConsole.info(req.body)
 })
 
 app.get('/logout',(req,res,next)=>{
@@ -184,29 +203,28 @@ const args = minimist(process.argv.slice(2))
 switch (args.modo) {
     case 'cluster':
         if(cluster.isPrimary){
-            console.log(`master ${process.pid} is running`)
+            loggerConsole.info(`master ${process.pid} is running`)
             for(let i = 0;i<numCPUs;i++){
                 cluster.fork()
             }
             cluster.on('exit',(worker,code,signal)=>{
-                console.log(`worker ${worker.process.pid} died`)
+                loggerConsole.info(`worker ${worker.process.pid} died`)
             })
         } else {
-            var server = app.listen(PORT,()=>console.log(`Listening on ${PORT}`))
+            var server = app.listen(PORT,()=>loggerConsole.info(`Listening on ${PORT}`))
         }
         break;
     default:
-        var server = app.listen(PORT,()=>console.log(`Listening on ${PORT}`))
+        var server = app.listen(PORT,()=>loggerConsole.info(`Listening on ${PORT}`))
         break;
 }
 
-//const server = app.listen(PORT,()=>console.log(`Listening on ${PORT}`))
-console.log(`worker ${process.pid} started`)
+loggerConsole.info(`worker ${process.pid} started`)
 const io = new Server(server)
 
 
 io.on('connection', async socket=>{
-    console.log('new user')
+    loggerConsole.info('new user')
 
     let products = await productServices.get()
     io.emit('products',products)
@@ -233,7 +251,7 @@ io.on('connection', async socket=>{
             socket.emit('refreshCart',prodInCart)
         })
         socket.on('finishPurchase',async data=>{
-            console.log(data)
+            loggerConsole.info(data)
 
             let articulosPedido = ''
             let articulosPedidoWapp = ''
@@ -259,14 +277,14 @@ io.on('connection', async socket=>{
             
             try {
                 const info = await transporter.sendMail(mailOptions2)
-                console.log(info)
+                loggerConsole.info(info)
 
                 const message = await client.messages.create({
                     body:'pedido recibido y en estado de procesamiento',
                     from: '+17245387231',
                     to: data[data.length-1].phone
                 })
-                console.log(message)
+                loggerConsole.info(message)
 
                 const whatsapp = await client.messages.create({
                     body: `nuevo pedido de ${data[data.length-1].user} , email ${data[data.length-1].email}
@@ -274,10 +292,11 @@ io.on('connection', async socket=>{
                     from: 'whatsapp:'+'+14155238886',
                     to: 'whatsapp:'+data[data.length-1].phone
                 })
-                console.log(whatsapp)
+                loggerConsole.info(whatsapp)
 
             } catch (err) {
-                console.log(err)        
+                loggerError.error(err)
+                loggerConsole.error(err)        
             }
 
             for (let index = 0; index < data.length; index++) {
@@ -286,5 +305,4 @@ io.on('connection', async socket=>{
             }
         })
     })
-
 })

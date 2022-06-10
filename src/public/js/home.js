@@ -2,7 +2,7 @@ const socket = io()
 
 
 fetch('/req').then(r=>r.json()).then(user=>{
-    console.log(user)
+
     socket.emit('createCart')
 
     let imgDiv = document.getElementById('img')
@@ -17,7 +17,6 @@ fetch('/req').then(r=>r.json()).then(user=>{
 
 
 socket.on('products',data=>{
-    console.log(data)
     let products = data.payload
     let productContainer = document.getElementById('productContainer')
     
@@ -46,13 +45,8 @@ socket.on('products',data=>{
     });
 })
 
-socket.on('cartCreated', data => {
-    console.log(data.cart.payload[0]._id)
-    
-})
 
 socket.on('refreshCart',cart=>{
-    console.log(cart)
 
     let cartContainer = document.getElementById('cartContainer')
     cartContainer.innerHTML = null
